@@ -1,4 +1,3 @@
-import base64
 from urllib import parse
 
 import pytest
@@ -20,6 +19,7 @@ from djangosaml2idp.idp import IDP
 from djangosaml2idp.models import ServiceProvider
 from djangosaml2idp.processors import BaseProcessor
 from djangosaml2idp.utils import encode_saml
+import djangosaml2idp.views
 from djangosaml2idp.views import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT,
                                   IdPHandlerViewMixin, LoginProcessView,
                                   LogoutProcessView, MetadataView, ProcessMultiFactorView,
@@ -482,6 +482,15 @@ class TestLoginProcessView:
         assert response.url == '/accounts/login/?next='
 
     @pytest.mark.django_db
+    def test_requires_authentication_custom_redirect(self, settings, logged_in_request):
+        logout(logged_in_request)
+
+        settings.SAML_IDP_LOGIN_URL = '/custom/login/'
+        response = LoginProcessView.as_view()(logged_in_request)
+        assert isinstance(response, HttpResponseRedirect)
+        assert response.url == '/custom/login/?next='
+
+    @pytest.mark.django_db
     def test_goes_through_normally_redirect(self, sp_metadata_xml, saml_login_request_factory, logged_in_request):
         ServiceProvider.objects.create(entity_id='test_generic_sp', local_metadata=sp_metadata_xml)
 
@@ -532,6 +541,15 @@ class TestIdpInitiatedFlow:
         response = SSOInitView.as_view()(logged_in_request)
         assert isinstance(response, HttpResponseRedirect)
         assert response.url == '/accounts/login/?next='
+
+    @pytest.mark.django_db
+    def test_requires_authentication_custom_redirect(self, settings, logged_in_request):
+        logout(logged_in_request)
+
+        settings.SAML_IDP_LOGIN_URL = '/custom/login/'
+        response = SSOInitView.as_view()(logged_in_request)
+        assert isinstance(response, HttpResponseRedirect)
+        assert response.url == '/custom/login/?next='
 
 
 class TestGetMultifactor:
